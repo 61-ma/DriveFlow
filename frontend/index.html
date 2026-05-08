@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Robotaxi AI 旅游行程规划助手</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="backdrop"></div>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Robotaxi Cabin Demo</p>
+          <h1>AI 旅游行程规划助手</h1>
+          <p class="subtitle">
+            以语音为主的座舱大屏原型，前端展示关键帧，后端由 Python 状态机驱动。
+          </p>
+        </div>
+        <div class="session-card">
+          <span id="sessionBadge">会话准备中</span>
+          <button id="restartButton" class="ghost-button">重新开始</button>
+        </div>
+      </header>
+
+      <section id="frameStrip" class="frame-strip"></section>
+
+      <section class="cockpit">
+        <article class="panel assistant-panel">
+          <div class="assistant-header">
+            <div class="assistant-orb">
+              <span id="assistantState">正在聆听</span>
+            </div>
+            <div>
+              <p class="eyebrow">座舱 AI</p>
+              <h2 id="stageLabel">需求发起</h2>
+            </div>
+          </div>
+
+          <p id="assistantMessage" class="assistant-message">
+            正在创建会话。
+          </p>
+
+          <div class="info-grid">
+            <section>
+              <h3>已确认信息</h3>
+              <div id="collectedInfo" class="tag-list"></div>
+            </section>
+            <section>
+              <h3>待确认信息</h3>
+              <div id="missingInfo" class="tag-list muted"></div>
+            </section>
+          </div>
+
+          <section>
+            <h3>推荐下一句</h3>
+            <div id="actionPanel" class="action-list"></div>
+          </section>
+        </article>
+
+        <article class="panel plan-panel">
+          <div class="plan-header">
+            <div>
+              <p class="eyebrow">当前方案</p>
+              <h2 id="planTitle">等待发起需求</h2>
+            </div>
+            <span id="budgetChip" class="summary-chip">未生成</span>
+          </div>
+          <p id="planSummary" class="plan-summary">
+            告诉我你想去哪里、玩几天，我会继续追问出发地、时间和预算。
+          </p>
+          <div id="planTimeline" class="timeline empty-state">
+            行程生成后，会在这里展示每日安排、转场方式和预算分布。
+          </div>
+          <div id="planTips" class="tips"></div>
+        </article>
+      </section>
+
+      <section class="panel conversation-panel">
+        <div class="conversation-header">
+          <div>
+            <p class="eyebrow">语音记录</p>
+            <h2>交互回放</h2>
+          </div>
+          <p class="helper-text">用于展示乘客语音与 AI 反馈的完整链路。</p>
+        </div>
+        <div id="conversationList" class="conversation-list"></div>
+      </section>
+
+      <section class="panel control-panel">
+        <div class="composer-header">
+          <div>
+            <p class="eyebrow">模拟输入</p>
+            <h2>乘客语音文本</h2>
+          </div>
+          <p class="helper-text">支持直接输入，也可以点击下方示例脚本。</p>
+        </div>
+        <div class="composer">
+          <textarea
+            id="userInput"
+            rows="3"
+            placeholder="例如：帮我规划一个云南5天的行程"
+          ></textarea>
+          <button id="sendButton" class="primary-button">发送语音文本</button>
+        </div>
+        <div class="secondary-actions">
+          <button id="confirmButton" class="secondary-button">确认方案</button>
+          <button id="shareButton" class="secondary-button">保存到手机</button>
+        </div>
+        <div>
+          <p class="eyebrow">示例关键帧</p>
+          <div id="sceneList" class="scene-list"></div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/static/app.js"></script>
+  </body>
+</html>
+
