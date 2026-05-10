@@ -1,0 +1,1504 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920">
+<title>滴伴出行 · v4 — Robotaxi 座舱 AI 伴侣 小桔</title>
+<style>
+/* ============ 基础 ============ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --c-orange:        #FF6B35;
+  --c-orange-light:  #FFA76B;
+  --c-orange-soft:   #FFD2B8;
+
+  --c-bg-deep:       #050a1a;
+  --c-bg-mid:        #0c1830;
+  --c-bg-warm:       #1a3060;
+
+  --c-text-main:     #e6efff;
+  --c-text-sub:      #8ab4d8;
+  --c-text-mute:     #5a7aa8;
+
+  --card-bg:         rgba(20, 35, 75, 0.42);
+  --card-border:     rgba(255, 167, 107, 0.16);
+  --card-radius:     20px;
+
+  --gap:             18px;
+}
+
+html, body { width: 100%; height: 100%; }
+
+body {
+  overflow: hidden;
+  font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: var(--c-text-main);
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+  background:
+    radial-gradient(ellipse 75% 80% at 72% 50%, #1d3568 0%, #0e1d3e 55%, #050a1a 100%);
+}
+
+/* ============ 整体布局 ============ */
+.layout {
+  position: relative;
+  width: 100vw; height: 100vh;
+}
+
+/* ============ 顶部状态栏 ============ */
+.topbar {
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 56px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 32px;
+  z-index: 100;
+}
+.status-chips { display: flex; gap: 10px; }
+.chip {
+  padding: 6px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+  color: var(--c-text-sub);
+  letter-spacing: 0.5px;
+  backdrop-filter: blur(8px);
+}
+.brand-tag {
+  display: flex; align-items: center; gap: 12px;
+  padding: 6px 16px 6px 8px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(255, 107, 53, 0.18), rgba(255, 167, 107, 0.05));
+  border: 1px solid rgba(255, 167, 107, 0.25);
+  backdrop-filter: blur(10px);
+}
+.brand-logo {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #FFA76B, #FF6B35);
+  display: grid; place-items: center;
+  font-size: 16px;
+  box-shadow: 0 0 12px rgba(255, 107, 53, 0.5);
+}
+.brand-text { line-height: 1.1; }
+.brand-name {
+  font-size: 14px; font-weight: 600;
+  color: var(--c-orange-soft); letter-spacing: 2px;
+}
+.brand-sub {
+  font-size: 10px; color: var(--c-text-mute);
+  letter-spacing: 2px; margin-top: 2px;
+}
+
+/* ============ 左侧信息卡片区 ============ */
+.left-panel {
+  position: absolute;
+  top: 80px;
+  bottom: 218px;       /* 底部留给 demo-bar */
+  left: 32px;
+  width: calc(50% - 56px);
+  display: flex; flex-direction: column; gap: var(--gap);
+  z-index: 20;
+}
+
+/* 卡片通用 */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  padding: 22px 24px;
+  backdrop-filter: blur(20px);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  position: relative;
+}
+.card-label {
+  font-size: 11px;
+  color: var(--c-orange-light);
+  letter-spacing: 4px;
+  margin-bottom: 12px;
+  display: flex; align-items: center; gap: 8px;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+/* ----- 行程卡片 ----- */
+.trip-card { flex: 0 0 auto; }
+.trip-route {
+  font-size: 24px; font-weight: 600;
+  color: var(--c-text-main);
+  margin-bottom: 6px;
+  line-height: 1.3;
+  letter-spacing: 0.5px;
+}
+.trip-detail {
+  font-size: 13px;
+  color: var(--c-text-sub);
+  margin-bottom: 18px;
+}
+.progress-wrap { margin-bottom: 16px; }
+.progress-bar {
+  height: 5px;
+  background: rgba(100, 150, 220, 0.12);
+  border-radius: 3px;
+  position: relative;
+  overflow: visible;
+}
+.progress-fill {
+  height: 100%; width: 65%;
+  background: linear-gradient(90deg, var(--c-orange), var(--c-orange-light));
+  border-radius: 3px;
+  position: relative;
+  box-shadow: 0 0 8px rgba(255, 107, 53, 0.5);
+}
+.progress-fill::after {
+  content: ''; position: absolute; right: -6px; top: -3.5px;
+  width: 12px; height: 12px;
+  background: var(--c-orange-light);
+  border-radius: 50%;
+  box-shadow: 0 0 12px rgba(255, 167, 107, 0.8);
+}
+.trip-time-wrap {
+  display: flex; align-items: baseline; gap: 10px;
+}
+.trip-time-num {
+  font-size: 42px; font-weight: 700;
+  color: var(--c-text-main);
+  letter-spacing: 1px;
+  line-height: 1;
+}
+.trip-time-unit {
+  font-size: 14px;
+  color: var(--c-text-sub);
+}
+.trip-eta {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--c-text-mute);
+  letter-spacing: 2px;
+}
+
+/* ----- 对话卡片 ----- */
+.chat-card {
+  flex: 1 1 auto;
+  display: flex; flex-direction: column;
+  min-height: 0;
+}
+.dot-pulse {
+  display: inline-block;
+  width: 7px; height: 7px;
+  background: var(--c-orange);
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(255, 107, 53, 0.7);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; transform: scale(0.85); }
+  50%      { opacity: 1;   transform: scale(1.1); }
+}
+.chat {
+  flex: 1 1 auto;
+  display: flex; flex-direction: column; gap: 10px;
+  overflow-y: auto;
+  padding-right: 4px;
+  min-height: 80px;
+}
+.chat::-webkit-scrollbar { width: 0; }
+
+.msg {
+  max-width: 88%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.55;
+  opacity: 0;
+  animation: msgFadeUp 0.4s ease forwards;
+  word-break: break-all;
+}
+.msg.user {
+  background: rgba(80, 130, 200, 0.18);
+  color: #c0d8f0;
+  align-self: flex-end;
+  border: 1px solid rgba(80, 130, 200, 0.25);
+  border-bottom-right-radius: 4px;
+}
+.msg.didi {
+  background: linear-gradient(135deg, rgba(255, 107, 53, 0.18), rgba(255, 167, 107, 0.08));
+  color: var(--c-orange-soft);
+  align-self: flex-start;
+  border: 1px solid rgba(255, 107, 53, 0.25);
+  border-bottom-left-radius: 4px;
+}
+@keyframes msgFadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============ 场景模拟控制条（底部长条） ============ */
+.demo-bar {
+  position: absolute;
+  left: 32px; right: 32px; bottom: 28px;
+  height: 172px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  padding: 16px 22px;
+  backdrop-filter: blur(20px);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  z-index: 40;
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 22px;
+  align-items: stretch;
+}
+.demo-bar-head {
+  display: flex; flex-direction: column; gap: 8px;
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+  padding-right: 22px;
+  min-width: 0;
+  overflow: hidden;
+}
+.demo-bar-head .card-label { margin-bottom: 2px; }
+
+.demo-tabs {
+  display: flex; flex-wrap: wrap;
+  gap: 5px;
+}
+.demo-tabs .tab {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--c-text-sub);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 5px 11px;
+  border-radius: 10px;
+  font-size: 11.5px;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 1px;
+  transition: all 180ms ease;
+}
+.demo-tabs .tab:hover {
+  background: rgba(255, 167, 107, 0.10);
+  color: var(--c-orange-soft);
+  border-color: rgba(255, 167, 107, 0.25);
+}
+.demo-tabs .tab.active {
+  background: linear-gradient(135deg, rgba(255, 107, 53, 0.40), rgba(255, 107, 53, 0.20));
+  color: #fff;
+  border-color: rgba(255, 107, 53, 0.60);
+  box-shadow: 0 2px 10px rgba(255, 107, 53, 0.28);
+}
+
+.demo-desc {
+  font-size: 11px;
+  color: var(--c-text-mute);
+  letter-spacing: 0.4px;
+  line-height: 1.55;
+  margin-top: auto;       /* 底部对齐 */
+}
+
+.demo-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: min-content;
+  gap: 8px;
+  align-content: start;
+  overflow-y: auto;
+  padding-right: 4px;
+  min-width: 0;
+}
+.demo-buttons::-webkit-scrollbar { width: 4px; }
+.demo-buttons::-webkit-scrollbar-thumb {
+  background: rgba(255, 167, 107, 0.18);
+  border-radius: 2px;
+}
+.demo-buttons button {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--c-text-main);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 9px 12px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.5px;
+  text-align: left;
+  transition: all 180ms ease;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.demo-buttons button:hover {
+  background: rgba(255, 167, 107, 0.16);
+  border-color: rgba(255, 167, 107, 0.42);
+  color: var(--c-orange-soft);
+  transform: translateY(-1px);
+}
+.demo-buttons button:active {
+  transform: translateY(0);
+}
+.demo-buttons button[data-kind="emergency"] {
+  background: rgba(220, 60, 60, 0.14);
+  border-color: rgba(220, 60, 60, 0.32);
+  color: #ffb0b0;
+}
+.demo-buttons button[data-kind="emergency"]:hover {
+  background: rgba(220, 60, 60, 0.24);
+  border-color: rgba(220, 60, 60, 0.55);
+  color: #ffd0d0;
+}
+.demo-buttons button[data-kind="state"] {
+  background: rgba(120, 160, 255, 0.10);
+  border-color: rgba(120, 160, 255, 0.22);
+  color: #b8d0ff;
+}
+.demo-buttons button[data-kind="state"]:hover {
+  background: rgba(120, 160, 255, 0.18);
+  color: #d0e0ff;
+}
+
+/* ============ 右侧：小桔主舞台 ============ */
+.right-stage {
+  position: absolute;
+  top: 0; right: 0;
+  bottom: 218px;       /* 底部留给 demo-bar */
+  width: 50%;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  z-index: 10;
+}
+
+/* 装饰星点 */
+.stars { position: absolute; inset: 0; pointer-events: none; }
+.stars span {
+  position: absolute;
+  width: 2px; height: 2px;
+  background: white; border-radius: 50%;
+  opacity: 0.25;
+  animation: twinkle 4s ease-in-out infinite;
+}
+@keyframes twinkle {
+  0%, 100% { opacity: 0.15; transform: scale(1); }
+  50%      { opacity: 0.55; transform: scale(1.4); }
+}
+
+/* ============ 小桔本体（橘子 PNG）============ */
+.mascot-stage {
+  position: relative;
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  perspective: 1000px;
+  transition: transform 520ms cubic-bezier(0.25, 1, 0.5, 1);
+  transform-origin: bottom center;
+}
+/* 气泡显示时：小桔自动下移 + 微缩，给气泡让位 */
+.mascot-stage.invite-shown {
+  transform: translateY(54px) scale(0.86);
+}
+
+.mascot {
+  --tx: 0px;
+  --ty: 0px;
+  --scale: 1;
+  --tilt: 0deg;
+  --glow-size: 60px;
+  --glow-strength: 0.45;
+  --glow-color: 255, 107, 53;
+  --img-brightness: 1;
+  --img-saturate: 1;
+
+  position: relative;
+  width: 380px; height: 380px;
+  display: flex; align-items: center; justify-content: center;
+
+  transform:
+    translate(var(--tx), var(--ty))
+    scale(var(--scale))
+    rotate(var(--tilt));
+
+  transition:
+    --glow-size 600ms ease,
+    --glow-strength 600ms ease,
+    --glow-color 400ms ease,
+    --img-brightness 400ms ease,
+    --img-saturate 400ms ease;
+
+  z-index: 5;
+}
+
+.mascot-img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  filter:
+    brightness(var(--img-brightness))
+    saturate(var(--img-saturate))
+    drop-shadow(0 0 var(--glow-size) rgba(var(--glow-color), var(--glow-strength)))
+    drop-shadow(0 0 calc(var(--glow-size) * 2) rgba(var(--glow-color), calc(var(--glow-strength) * 0.5)))
+    drop-shadow(0 12px 24px rgba(0, 0, 0, 0.35));
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* 地面光斑 */
+.mascot-shadow {
+  position: absolute;
+  bottom: 18%;
+  width: 220px; height: 32px;
+  background: radial-gradient(ellipse, rgba(255, 107, 53, 0.45) 0%, transparent 70%);
+  border-radius: 50%;
+  filter: blur(10px);
+  z-index: 1;
+  animation: shadowBreath 3.2s ease-in-out infinite;
+}
+@keyframes shadowBreath {
+  0%, 100% { transform: scale(1);   opacity: 0.7; }
+  50%      { transform: scale(0.9); opacity: 0.5; }
+}
+
+/* listening：脉冲光环 */
+.mascot[data-state="listening"]::before {
+  content: '';
+  position: absolute;
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 167, 107, 0.5);
+  animation: pulseRing 1.4s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes pulseRing {
+  0%   { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* ============ 小桔装饰层（多形态系统） ============ */
+.mascot-decor {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.mascot-decor--back  { z-index: 4; }
+.mascot-decor--front { z-index: 6; }
+
+/* —— 漂浮 emoji（happy/sleepy/curious 用）—— */
+.decor-float {
+  position: absolute;
+  font-size: 30px;
+  bottom: 75%;
+  opacity: 0;
+  animation: floatUp 3s ease-in-out infinite;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
+}
+.decor-float:nth-child(1) { left: 22%; animation-delay: 0s;   }
+.decor-float:nth-child(2) { left: 50%; animation-delay: 1s;   font-size: 36px; }
+.decor-float:nth-child(3) { left: 75%; animation-delay: 2s;   }
+@keyframes floatUp {
+  0%   { transform: translateY(0)    scale(0.6); opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: translateY(-90px) scale(1.1); opacity: 0; }
+}
+
+/* —— 头顶装饰（雨天伞、惊讶气泡等）—— */
+.decor-hat {
+  position: absolute;
+  font-size: 64px;
+  left: 50%;
+  top: -8%;
+  transform-origin: bottom center;
+  animation: hatBob 2.4s ease-in-out infinite;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4));
+}
+@keyframes hatBob {
+  0%, 100% { transform: translateX(-50%) rotate(-8deg) translateY(0); }
+  50%      { transform: translateX(-50%) rotate(-4deg) translateY(-4px); }
+}
+
+/* —— 侧面装饰（夜晚月亮、问号气泡等）—— */
+.decor-side {
+  position: absolute;
+  font-size: 52px;
+  right: -6%;
+  top: 8%;
+  animation: sideFloat 3.6s ease-in-out infinite;
+  filter: drop-shadow(0 0 14px rgba(255, 230, 150, 0.6));
+}
+@keyframes sideFloat {
+  0%, 100% { transform: translateY(0)    rotate(-4deg); }
+  50%      { transform: translateY(-10px) rotate(6deg); }
+}
+
+/* —— 头顶旗子（探索模式）—— */
+.decor-flag {
+  position: absolute;
+  font-size: 44px;
+  left: 50%;
+  top: -4%;
+  transform: translateX(-50%);
+  animation: flagWave 1.4s ease-in-out infinite;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.35));
+}
+@keyframes flagWave {
+  0%, 100% { transform: translateX(-50%) rotate(-12deg); }
+  50%      { transform: translateX(-50%) rotate(12deg);  }
+}
+
+/* —— 守护盾光环（应急 L3）—— */
+.decor-shield {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 110%; height: 110%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 3px solid rgba(255, 130, 80, 0.55);
+  box-shadow:
+    0 0 40px rgba(255, 130, 80, 0.45),
+    inset 0 0 30px rgba(255, 130, 80, 0.25);
+  animation: shieldPulse 1.8s ease-in-out infinite;
+}
+.decor-shield::after {
+  content: '🛡';
+  position: absolute;
+  top: -16px; left: 50%;
+  transform: translateX(-50%);
+  font-size: 36px;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
+}
+@keyframes shieldPulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1);    opacity: 0.6; }
+  50%      { transform: translate(-50%, -50%) scale(1.06); opacity: 1;   }
+}
+
+/* —— 雨滴（雨天形态背景层）—— */
+.decor-rain {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.decor-rain span {
+  position: absolute;
+  top: -20px;
+  width: 2px; height: 14px;
+  background: linear-gradient(transparent, rgba(180, 220, 255, 0.7));
+  border-radius: 2px;
+  animation: rainFall 1.2s linear infinite;
+}
+@keyframes rainFall {
+  0%   { transform: translateY(0)    rotate(8deg); opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: translateY(420px) rotate(8deg); opacity: 0; }
+}
+
+/* alert：危险红圈警示 */
+.mascot[data-state="alert"]::before {
+  content: '';
+  position: absolute;
+  width: 110%; height: 110%;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 80, 80, 0.6);
+  animation: alertFlash 0.6s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes alertFlash {
+  0%   { opacity: 0.4; transform: scale(0.95); }
+  100% { opacity: 1;   transform: scale(1.05); }
+}
+
+/* ============ 主动邀请弹窗（颜色 + 图标随当前小桔形态变化）============ */
+.invite {
+  /* 默认橙色调（idle/curious 时） */
+  --invite-tone: 255, 167, 107;
+  --invite-soft: 255, 210, 184;
+
+  position: absolute;
+  /* 固定 96px：完全避开 topbar (56px) + 40px 呼吸距离，跟右上 brand-tag 错开垂直层 */
+  top: 96px;
+  left: 50%;
+  transform: translate(-50%, -10px);
+  width: 360px;
+  background: linear-gradient(135deg, rgba(40, 60, 110, 0.92), rgba(20, 35, 75, 0.92));
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(var(--invite-tone), 0.5);
+  border-radius: 18px;
+  padding: 16px 18px;
+  z-index: 80;
+  opacity: 0; pointer-events: none;
+  transition:
+    opacity 400ms ease,
+    transform 400ms cubic-bezier(.16,1.16,.42,1.05),
+    border-color 400ms ease,
+    box-shadow 400ms ease;
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.4),
+    0 0 28px rgba(var(--invite-tone), 0.22);
+}
+.invite.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+/* 指向橘子的小尾巴 */
+.invite::after {
+  content: '';
+  position: absolute;
+  bottom: -8px; left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 16px; height: 16px;
+  background: rgba(20, 35, 75, 0.92);
+  border-right: 1px solid rgba(var(--invite-tone), 0.5);
+  border-bottom: 1px solid rgba(var(--invite-tone), 0.5);
+  transition: border-color 400ms ease;
+}
+.invite-text {
+  font-size: 14px;
+  color: rgba(var(--invite-soft), 1);
+  line-height: 1.55;
+  margin-bottom: 12px;
+  display: flex; align-items: flex-start; gap: 8px;
+  transition: color 400ms ease;
+}
+.invite-text::before {
+  content: attr(data-icon);
+  font-size: 16px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.invite-options { display: flex; gap: 8px; }
+.invite-options button {
+  flex: 1;
+  background: rgba(var(--invite-tone), 0.14);
+  color: rgba(var(--invite-soft), 0.95);
+  border: 1px solid rgba(var(--invite-tone), 0.32);
+  padding: 7px 12px; border-radius: 12px;
+  font-size: 12px; cursor: pointer;
+  font-family: inherit;
+  transition: all 180ms ease;
+}
+.invite-options button:hover {
+  background: rgba(var(--invite-tone), 0.26);
+  transform: translateY(-1px);
+}
+.invite-options button[data-resp="silent"] {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--c-text-sub);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ============ 角标 + 版本水印（隐式提示）============ */
+.version-tag {
+  position: absolute;
+  bottom: 12px; right: 16px;
+  font-size: 10px;
+  color: var(--c-text-mute);
+  letter-spacing: 2px;
+  z-index: 5;
+  opacity: 0.5;
+}
+
+/* ============ 响应式：低分辨率适配（最低 1366）============ */
+@media (max-width: 1500px) {
+  .mascot { width: 320px; height: 320px; }
+  .trip-route { font-size: 22px; }
+  .trip-time-num { font-size: 36px; }
+  .left-panel { width: calc(50% - 48px); bottom: 196px; }
+  .right-stage { bottom: 196px; }
+  .demo-bar {
+    height: 152px;
+    grid-template-columns: 260px 1fr;
+    padding: 14px 18px;
+  }
+  .demo-buttons {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- 顶部状态栏 -->
+  <header class="topbar">
+    <div class="status-chips">
+      <span class="chip" id="clock">14:32</span>
+      <span class="chip">晴 · 22°C</span>
+      <span class="chip">🔋 78%</span>
+      <span class="chip">📶 5G</span>
+    </div>
+    <div class="brand-tag">
+      <div class="brand-logo">🍊</div>
+      <div class="brand-text">
+        <div class="brand-name">滴伴出行</div>
+        <div class="brand-sub">ROBOTAXI · 智能座舱</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 左侧信息卡片堆栈 -->
+  <aside class="left-panel">
+
+    <!-- 行程卡片 -->
+    <section class="card trip-card">
+      <div class="card-label">本次行程</div>
+      <h1 class="trip-route">国贸三期 → 中关村·智源大厦</h1>
+      <div class="trip-detail">距离 18.6 km · 路况良好</div>
+      <div class="progress-wrap">
+        <div class="progress-bar"><div class="progress-fill"></div></div>
+      </div>
+      <div class="trip-time-wrap">
+        <span class="trip-time-num">12</span>
+        <span class="trip-time-unit">分钟到达</span>
+        <span class="trip-eta">PROXIMA · 14:44</span>
+      </div>
+    </section>
+
+    <!-- 对话卡片 -->
+    <section class="card chat-card">
+      <div class="card-label"><span class="dot-pulse"></span> 与小桔对话</div>
+      <div class="chat" id="chat"></div>
+    </section>
+
+  </aside>
+
+  <!-- 右侧：小桔主舞台 -->
+  <main class="right-stage">
+    <div class="stars" id="stars"></div>
+
+    <!-- 主动邀请：从橘子上方滑入；颜色和图标随小桔形态自动匹配 -->
+    <div class="invite" id="invite">
+      <div class="invite-text" id="invite-text" data-icon="🍊">外面在下雨呢，记得带伞哦～</div>
+      <div class="invite-options">
+        <button data-resp="ok">好的</button>
+        <button data-resp="auto">你帮我选</button>
+        <button data-resp="silent">安静一会儿</button>
+      </div>
+    </div>
+
+    <!-- 小桔本体 -->
+    <div class="mascot-stage">
+      <div class="mascot-shadow"></div>
+      <div class="mascot" id="mascot" data-state="idle">
+        <!-- 装饰层（漂浮 emoji / 头顶帽 / 侧面光晕 / 守护盾等） -->
+        <div class="mascot-decor mascot-decor--back" id="mascotDecorBack"></div>
+        <img src="assets/mascot-orange.png" alt="小桔" class="mascot-img" draggable="false">
+        <div class="mascot-decor mascot-decor--front" id="mascotDecorFront"></div>
+      </div>
+    </div>
+
+    <div class="version-tag">v4.0 · 小桔 IP</div>
+  </main>
+
+  <!-- ====== 场景模拟控制条（底部长条） ====== -->
+  <section class="demo-bar">
+    <div class="demo-bar-head">
+      <div class="card-label">
+        <span class="dot-pulse"></span> 场景模拟 · 点按钮模拟语音输入
+      </div>
+      <div class="demo-tabs" id="demoTabs">
+        <button class="tab active" data-tab="kefu">智能客服</button>
+        <button class="tab" data-tab="emo">情绪陪伴</button>
+        <button class="tab" data-tab="active">主动服务</button>
+        <button class="tab" data-tab="city">城市探索</button>
+        <button class="tab" data-tab="emergency">应急 P0</button>
+        <button class="tab" data-tab="state">形象状态</button>
+      </div>
+      <div class="demo-desc" id="demoDesc"></div>
+    </div>
+    <div class="demo-buttons" id="demoButtons"></div>
+  </section>
+
+</div>
+
+<script>
+'use strict';
+
+/* ============================================================
+   小桔 10 种形态（PRD 3.1：6 情绪 + 4 场景化形变）
+   - 视觉参数: scale / tilt / glow / brightness / saturate / 呼吸
+   - decor: 装饰层配置（漂浮 emoji / 头顶帽 / 侧面装饰 / 旗子 / 守护盾 / 雨滴）
+   ============================================================ */
+const STATE_CONFIGS = {
+  idle: {
+    scale: 1.0, tilt: 0,
+    glowSize: 70,  glowStrength: 0.45, glowColor: '255, 107, 53',
+    imgBrightness: 1.0, imgSaturate: 1.0,
+    breathSpeed: 0.8, swaySpeed: 0.5, bobSpeed: 0.5,
+    breathAmp: 0.008, swayAmp: 0.6, bobAmp: 4,
+    decor: null,
+    icon: '🍊', tone: '255, 167, 107', soft: '255, 210, 184',
+    line: null
+  },
+  happy: {
+    scale: 1.04, tilt: 0,
+    glowSize: 110, glowStrength: 0.7, glowColor: '255, 200, 100',
+    imgBrightness: 1.08, imgSaturate: 1.1,
+    breathSpeed: 1.4, swaySpeed: 1.3, bobSpeed: 1.0,
+    breathAmp: 0.018, swayAmp: 1.6, bobAmp: 8,
+    decor: { kind: 'float', items: ['💖', '✨', '💖'] },
+    icon: '😊', tone: '255, 200, 100', soft: '255, 230, 180',
+    lines: ['心情突然好起来了～', '哈哈，开心捕获！', '今天感觉特别棒']
+  },
+  curious: {
+    scale: 1.0, tilt: -8,
+    glowSize: 85, glowStrength: 0.55, glowColor: '255, 167, 107',
+    imgBrightness: 1.04, imgSaturate: 1.05,
+    breathSpeed: 1.0, swaySpeed: 1.0, bobSpeed: 0.8,
+    breathAmp: 0.008, swayAmp: 1.2, bobAmp: 5,
+    decor: { kind: 'side', emoji: '❓' },
+    icon: '🤔', tone: '255, 167, 107', soft: '255, 210, 184',
+    lines: ['嗯？哪里不对劲', '咦？我看看', '有点意思呀']
+  },
+  listening: {
+    scale: 1.02, tilt: 0,
+    glowSize: 100, glowStrength: 0.7, glowColor: '255, 167, 107',
+    imgBrightness: 1.06, imgSaturate: 1.08,
+    breathSpeed: 0.5, swaySpeed: 0, bobSpeed: 0.3,
+    breathAmp: 0.014, swayAmp: 0, bobAmp: 2,
+    decor: { kind: 'float', items: ['🎵', '♪', '🎵'] },
+    icon: '👂', tone: '255, 167, 107', soft: '255, 210, 184',
+    lines: ['我在认真听呢', '你说，我听着']
+  },
+  sleepy: {
+    scale: 0.96, tilt: 4,
+    glowSize: 35, glowStrength: 0.25, glowColor: '180, 100, 60',
+    imgBrightness: 0.78, imgSaturate: 0.7,
+    breathSpeed: 0.3, swaySpeed: 0.2, bobSpeed: 0.2,
+    breathAmp: 0.012, swayAmp: 0.4, bobAmp: 1.5,
+    decor: { kind: 'float', items: ['💤', '💤', '💤'] },
+    icon: '💤', tone: '180, 130, 90', soft: '230, 200, 170',
+    lines: ['我有点想打盹了…', '夜深啦，安静一会儿', '困意上来了']
+  },
+  alert: {
+    scale: 1.02, tilt: 0,
+    glowSize: 100, glowStrength: 0.85, glowColor: '255, 80, 60',
+    imgBrightness: 1.05, imgSaturate: 1.25,
+    breathSpeed: 0.1, swaySpeed: 0, bobSpeed: 0,
+    breathAmp: 0.001, swayAmp: 0, bobAmp: 0,
+    decor: { kind: 'side', emoji: '❗' },
+    icon: '⚠️', tone: '255, 100, 80', soft: '255, 200, 200',
+    lines: ['我注意到了，提高警惕', '收到，进入警戒']
+  },
+
+  /* ===== 4 种 PRD 场景化形态 ===== */
+  rainy: {
+    scale: 1.0, tilt: -3,
+    glowSize: 65, glowStrength: 0.4, glowColor: '120, 180, 220',
+    imgBrightness: 0.92, imgSaturate: 0.85,
+    breathSpeed: 0.5, swaySpeed: 0.4, bobSpeed: 0.3,
+    breathAmp: 0.01, swayAmp: 0.5, bobAmp: 2,
+    decor: { kind: 'rainy', emoji: '☂️' },
+    icon: '☂️', tone: '120, 180, 220', soft: '200, 225, 245',
+    lines: ['外面下雨啦，我先给你撑把伞', '雨有点大，我陪你慢慢走']
+  },
+  night: {
+    scale: 0.98, tilt: 0,
+    glowSize: 95, glowStrength: 0.65, glowColor: '255, 215, 130',
+    imgBrightness: 0.85, imgSaturate: 0.95,
+    breathSpeed: 0.4, swaySpeed: 0.3, bobSpeed: 0.3,
+    breathAmp: 0.014, swayAmp: 0.4, bobAmp: 2.5,
+    decor: { kind: 'side', emoji: '🌙' },
+    icon: '🌙', tone: '255, 215, 130', soft: '255, 235, 190',
+    lines: ['夜深了，我把光调暖一些', '晚上好，我陪你回家']
+  },
+  explore: {
+    scale: 1.05, tilt: 3,
+    glowSize: 105, glowStrength: 0.7, glowColor: '255, 200, 90',
+    imgBrightness: 1.06, imgSaturate: 1.12,
+    breathSpeed: 1.2, swaySpeed: 1.0, bobSpeed: 1.2,
+    breathAmp: 0.014, swayAmp: 1.4, bobAmp: 7,
+    decor: { kind: 'flag', emoji: '🚩' },
+    icon: '🗺', tone: '255, 200, 90', soft: '255, 230, 170',
+    lines: ['走，带你看看路过的风景', '探索模式开启！']
+  },
+  guardian: {
+    scale: 1.05, tilt: 0,
+    glowSize: 130, glowStrength: 0.85, glowColor: '255, 130, 80',
+    imgBrightness: 1.08, imgSaturate: 1.18,
+    breathSpeed: 0.3, swaySpeed: 0, bobSpeed: 0,
+    breathAmp: 0.005, swayAmp: 0, bobAmp: 0,
+    decor: { kind: 'shield' },
+    icon: '🛡', tone: '255, 130, 80', soft: '255, 200, 170',
+    lines: ['别怕，我守在这里', '一切交给我，你保持镇定']
+  }
+};
+
+function randomLine(state) {
+  const cfg = STATE_CONFIGS[state];
+  if (!cfg) return null;
+  if (cfg.lines && cfg.lines.length) {
+    return cfg.lines[Math.floor(Math.random() * cfg.lines.length)];
+  }
+  return cfg.line || null;
+}
+
+/* ============ 当前与目标参数（lerp 平滑过渡）============ */
+let current = { ...STATE_CONFIGS.idle };
+let target  = { ...STATE_CONFIGS.idle };
+const LERP = 0.05;
+
+/* ============ 弹簧物理（鼠标跟随）============ */
+let spring = { tx: 0, ty: 0, vx: 0, vy: 0 };
+const STIFFNESS = 0.012;       // 调硬：从 0.006 → 0.012，弹簧响应更跟手，残余晃动更快归位
+const DAMPING   = 0.86;        // 阻尼略大：从 0.9 → 0.86，避免长时间衰减振荡
+const SPRING_VELOCITY_CAP = 6; // 速度上限：防止累积冲量导致的剧烈抖动
+let mouseX = 0, mouseY = 0;
+
+const mascot = document.getElementById('mascot');
+const stage  = document.querySelector('.mascot-stage');
+
+document.addEventListener('mousemove', e => {
+  const rect = stage.getBoundingClientRect();
+  mouseX = (e.clientX - rect.left - rect.width / 2)  * 0.04;
+  mouseY = (e.clientY - rect.top  - rect.height / 2) * 0.04;
+});
+
+/* ============ 数值 lerp 主循环 ============ */
+const numericKeys = [
+  'scale', 'tilt',
+  'glowSize', 'glowStrength',
+  'imgBrightness', 'imgSaturate',
+  'breathSpeed', 'swaySpeed', 'bobSpeed',
+  'breathAmp', 'swayAmp', 'bobAmp'
+];
+
+let t0 = performance.now();
+function animate(now) {
+  const t = (now - t0) / 1000;
+
+  for (const k of numericKeys) {
+    current[k] += (target[k] - current[k]) * LERP;
+  }
+  current.glowColor = target.glowColor;
+
+  spring.vx += (mouseX - spring.tx) * STIFFNESS;
+  spring.vy += (mouseY - spring.ty) * STIFFNESS;
+  spring.vx *= DAMPING;
+  spring.vy *= DAMPING;
+  // 速度截断，防止任何意外脉冲累积
+  if (spring.vx >  SPRING_VELOCITY_CAP) spring.vx =  SPRING_VELOCITY_CAP;
+  if (spring.vx < -SPRING_VELOCITY_CAP) spring.vx = -SPRING_VELOCITY_CAP;
+  if (spring.vy >  SPRING_VELOCITY_CAP) spring.vy =  SPRING_VELOCITY_CAP;
+  if (spring.vy < -SPRING_VELOCITY_CAP) spring.vy = -SPRING_VELOCITY_CAP;
+  spring.tx += spring.vx;
+  spring.ty += spring.vy;
+
+  const breath = Math.sin(t * current.breathSpeed) * current.breathAmp;
+  const sway   = (Math.sin(t * current.swaySpeed) + Math.sin(t * current.swaySpeed * 0.7 + 1)) * current.swayAmp * 0.5;
+  const bob    = (Math.sin(t * current.bobSpeed)  + Math.sin(t * current.bobSpeed * 0.6))      * current.bobAmp  * 0.5;
+
+  const style = mascot.style;
+  style.setProperty('--tx',              spring.tx.toFixed(2) + 'px');
+  style.setProperty('--ty',              (spring.ty + bob).toFixed(2) + 'px');
+  style.setProperty('--scale',           (current.scale + breath).toFixed(4));
+  style.setProperty('--tilt',            (current.tilt + sway).toFixed(2) + 'deg');
+  style.setProperty('--glow-size',       current.glowSize.toFixed(0) + 'px');
+  style.setProperty('--glow-strength',   current.glowStrength.toFixed(2));
+  style.setProperty('--glow-color',      current.glowColor);
+  style.setProperty('--img-brightness',  current.imgBrightness.toFixed(3));
+  style.setProperty('--img-saturate',    current.imgSaturate.toFixed(3));
+
+  requestAnimationFrame(animate);
+}
+requestAnimationFrame(animate);
+
+/* ============ 装饰层渲染 ============ */
+const decorBack  = document.getElementById('mascotDecorBack');
+const decorFront = document.getElementById('mascotDecorFront');
+
+function setDecor(cfg) {
+  decorBack.innerHTML  = '';
+  decorFront.innerHTML = '';
+  if (!cfg) return;
+  switch (cfg.kind) {
+    case 'float': {           // 漂浮 emoji（前景）
+      cfg.items.forEach(emoji => {
+        const s = document.createElement('span');
+        s.className = 'decor-float';
+        s.textContent = emoji;
+        decorFront.appendChild(s);
+      });
+      break;
+    }
+    case 'hat': {             // 头顶大装饰（前景）
+      const s = document.createElement('span');
+      s.className = 'decor-hat';
+      s.textContent = cfg.emoji;
+      decorFront.appendChild(s);
+      break;
+    }
+    case 'side': {            // 侧面装饰（前景）
+      const s = document.createElement('span');
+      s.className = 'decor-side';
+      s.textContent = cfg.emoji;
+      decorFront.appendChild(s);
+      break;
+    }
+    case 'flag': {            // 头顶旗帜（前景）
+      const s = document.createElement('span');
+      s.className = 'decor-flag';
+      s.textContent = cfg.emoji;
+      decorFront.appendChild(s);
+      break;
+    }
+    case 'shield': {          // 守护光环（背景层）
+      const s = document.createElement('div');
+      s.className = 'decor-shield';
+      decorBack.appendChild(s);
+      break;
+    }
+    case 'rainy': {           // 雨滴（背景）+ 头顶伞（前景）
+      const rain = document.createElement('div');
+      rain.className = 'decor-rain';
+      for (let i = 0; i < 14; i++) {
+        const drop = document.createElement('span');
+        drop.style.left = (Math.random() * 100) + '%';
+        drop.style.animationDelay = (Math.random() * 1.2) + 's';
+        drop.style.animationDuration = (0.8 + Math.random() * 0.7) + 's';
+        rain.appendChild(drop);
+      }
+      decorBack.appendChild(rain);
+      const hat = document.createElement('span');
+      hat.className = 'decor-hat';
+      hat.textContent = cfg.emoji;
+      decorFront.appendChild(hat);
+      break;
+    }
+  }
+}
+
+/* ============ 状态切换 ============ */
+let returnTimer       = null;
+let lastSwitchTime    = 0;
+const SWITCH_BOUNCE_MS = 400;     // 同一形态切换冷却（避免短时间重复触发抖动）
+
+function switchTo(state, autoReturn = true) {
+  if (!STATE_CONFIGS[state]) return;
+
+  // 防抖：同一目标状态短时间重复切换 → 直接忽略（防止累积抖动）
+  const now = performance.now();
+  if (mascot.dataset.state === state && now - lastSwitchTime < SWITCH_BOUNCE_MS) {
+    return;
+  }
+  lastSwitchTime = now;
+
+  target = { ...STATE_CONFIGS[state] };
+  mascot.dataset.state = state;
+  setDecor(STATE_CONFIGS[state].decor);
+
+  // 轻微的反馈脉冲：从 -4 改成 -1.5，并且只在切换到非 idle 时触发
+  // 配合速度截断，单次脉冲温和，多次叠加也不会失控
+  if (state !== 'idle') {
+    spring.vy = Math.max(spring.vy - 1.5, -SPRING_VELOCITY_CAP);
+  }
+
+  if (returnTimer) { clearTimeout(returnTimer); returnTimer = null; }
+  if (autoReturn && state !== 'idle' && state !== 'alert') {
+    returnTimer = setTimeout(() => switchTo('idle'), 8000);
+  }
+}
+
+/* ============ 对话 ============ */
+const chat = document.getElementById('chat');
+function addMessage(who, text) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + who;
+  div.textContent = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  while (chat.children.length > 8) chat.removeChild(chat.firstChild);
+}
+
+/* ============ 主动邀请弹窗（支持自定义文案 + 接受/代办回复 + 自动 fallback） ============ */
+const invite      = document.getElementById('invite');
+const inviteText  = document.getElementById('invite-text');
+let inviteAccept  = '好的，这就给您安排～';
+let inviteAuto    = '没问题，我来挑～';
+let inviteTimer   = null;
+const INVITE_TIMEOUT_MS = 14000;     // 14 秒未响应自动收起
+
+function showInvite(text, opts = {}) {
+  const state = opts.state || 'curious';
+  const cfg   = STATE_CONFIGS[state] || STATE_CONFIGS.curious;
+
+  inviteText.textContent = text;
+  inviteText.dataset.icon = opts.icon || cfg.icon || '🍊';
+
+  // 气泡颜色跟形态匹配（边框、阴影、按钮、文字色）
+  invite.style.setProperty('--invite-tone', cfg.tone || '255, 167, 107');
+  invite.style.setProperty('--invite-soft', cfg.soft || '255, 210, 184');
+
+  inviteAccept = opts.accept || '好的，这就给您安排～';
+  inviteAuto   = opts.auto   || '没问题，我来挑～';
+  invite.classList.add('show');
+  stage.classList.add('invite-shown');     // 小桔下移 + 微缩，给气泡让位
+  switchTo(state, false);
+
+  if (inviteTimer) clearTimeout(inviteTimer);
+  inviteTimer = setTimeout(() => {
+    if (invite.classList.contains('show')) hideInvite('timeout');
+  }, INVITE_TIMEOUT_MS);
+}
+function hideInvite(action) {
+  invite.classList.remove('show');
+  stage.classList.remove('invite-shown');  // 桔子回到中心位置
+  if (inviteTimer) { clearTimeout(inviteTimer); inviteTimer = null; }
+  if (action === 'ok')      { addMessage('didi', inviteAccept); switchTo('happy'); }
+  if (action === 'auto')    { addMessage('didi', inviteAuto);   switchTo('happy'); }
+  if (action === 'silent')  { switchTo('idle'); }                         // 零失落：不卖惨
+  if (action === 'timeout') { switchTo('idle'); }                         // 自动收起也回 idle
+}
+document.querySelectorAll('.invite-options button').forEach(btn => {
+  btn.addEventListener('click', () => { lastUserAction = Date.now(); hideInvite(btn.dataset.resp); });
+});
+
+/* ============================================================
+   场景数据：按 PRD 6 大功能分组
+   话术全部来自《话术库 v2.0》
+   - voice     : 模拟用户语音 → listening → 思考 → 回复
+   - invite    : 直接弹主动邀请卡片（含三选项）
+   - emergency : 应急 ≤0.5s 内回复，alert 状态停留若干秒
+   - state     : 直接切换形象状态
+   ============================================================ */
+const SCENARIOS = {
+  kefu: {
+    desc: '智能客服 P0 · 5 类意图识别 · 响应 ≤1.5s · 3 次失败转人工',
+    items: [
+      { kind: 'voice', label: '🌡 太冷了',
+        user: '太冷了',
+        didi: ['帮您把温度调高 2 度好吗？现在是 22 度', '现在车里 22 度，给您调到 24 度怎么样'],
+        state: 'happy' },
+      { kind: 'voice', label: '⏱ 还有多久到',
+        user: '还有多久到？',
+        didi: ['还有 12 分钟就到啦，路上没什么堵，挺顺的', '大约 12 分钟，预计 14:44 到您的目的地', '12 分钟到，比预估早了 3 分钟呢'],
+        state: 'happy' },
+      { kind: 'voice', label: '📍 改个目的地',
+        user: '我想换个地方',
+        didi: ['好的，您说改到哪里？我帮您看看新路线', '没问题，请告诉我新的目的地，我同步给后台'],
+        state: 'curious' },
+      { kind: 'voice', label: '🚏 中途停一下',
+        user: '能停一下吗，我下车买个水',
+        didi: ['当前路段不能停车哦，前方 500 米有临时停车区可以停 3 分钟', '这里没法停，再开 2 分钟有个便利店门口可以停一下'],
+        state: 'curious' },
+      { kind: 'voice', label: '🎵 调小音量',
+        user: '声音小一点',
+        didi: ['音量从 60% 调到 40% 啦'],
+        state: 'happy' },
+      { kind: 'voice', label: '💰 这趟多少钱',
+        user: '现在多少钱了',
+        didi: ['这次行程到这里 28 元，预计总共 35 元左右'],
+        state: 'happy' },
+      { kind: 'voice', label: '👤 转人工（升级话术）',
+        user: '我要找人工客服',
+        didi: ['好的，正在为您接通客服，5 秒后接通'],
+        state: 'curious' },
+    ]
+  },
+
+  emo: {
+    desc: '情绪陪伴 P0 · 关键帧 1 不弹弹窗，只做形态变化 · 三选项给控制感',
+    items: [
+      { kind: 'invite', label: '😴 疲惫（夜晚 + 沉默）',
+        user: '（语调下沉，沉默 5 分钟）',
+        invite: '路有点长呀，要不要我放点轻音乐让您打个盹？',
+        accept: '好嘞，给您放一首班得瑞的《童年》，灯光也调暖一点～',
+        auto:   '我挑首钢琴曲，灯调成 3000K 暖光，您靠会儿',
+        state: 'curious', icon: '😴' },
+      { kind: 'invite', label: '😟 焦虑（频繁切换功能）',
+        user: '（频繁调温度、切音乐）',
+        invite: '是不是有点赶？车速正常，预计准时到',
+        accept: '行，我帮您调到稳定模式，不再打扰',
+        auto:   '那我把后续的提醒先压下，只留必要的',
+        state: 'curious', icon: '😟' },
+      { kind: 'invite', label: '😔 低落（关键词"累了"）',
+        user: '今天好累啊',
+        invite: '今天好像不太想说话——我陪您安静一下？',
+        accept: '好，那我们就安静地坐到目的地',
+        auto:   '我把音乐换成白噪音，音量降到 30%，留点空间',
+        state: 'curious', icon: '🍵' },
+      { kind: 'invite', label: '😄 开心（语调上扬）',
+        user: '今天真不错',
+        invite: '听起来心情不错呢，要不要给您放首应景的歌？',
+        accept: '好嘞，《Best Day of My Life》安排上！',
+        auto:   '让我挑一首跟您笑容更搭的快节奏',
+        state: 'happy', icon: '😄' },
+    ]
+  },
+
+  active: {
+    desc: '主动服务 P1 · 严格 3 次/行程 · 间隔 ≥5 分钟 · 商务模式自动屏蔽',
+    items: [
+      { kind: 'invite', label: '🌧 雨天提醒带伞',
+        invite: '外面在下雨呢，到了之后慢慢走，记得带伞',
+        accept: '好的，已经把"打伞提醒"加到到达通知里啦',
+        auto:   '我帮您看下到达点附近 200 米内哪家便利店有伞卖',
+        state: 'rainy', icon: '☂️' },
+      { kind: 'invite', label: '🚗 拥堵延误 10 分钟',
+        invite: '前面有点堵，预计多花 10 分钟，要不要给联系人发个微信？',
+        accept: '好的，已经给"妈妈"发了"晚到 10 分钟"',
+        auto:   '我帮您给最近联系的"妈妈"发一条晚到 10 分钟',
+        state: 'curious', icon: '🚦' },
+      { kind: 'invite', label: '🎵 推荐音乐（长行程）',
+        invite: '车程还挺长的，要放点音乐打发时间吗？',
+        accept: '好，根据您的喜好放一首《晴天》',
+        auto:   '看您最近常听爵士，我挑一首舒缓的',
+        state: 'curious', icon: '🎵' },
+      { kind: 'invite', label: '🌙 夜间到家提醒',
+        invite: '夜里到家了，走亮一点的路，到了给我个反馈我就放心了',
+        accept: '好，到家我会提醒您发个安全确认',
+        auto:   '我帮您挑路口照明最亮的下车点，停那里',
+        state: 'night', icon: '🌙' },
+      { kind: 'invite', label: '☕ 到达预订咖啡',
+        invite: '离到达还有 30 分钟，要不要帮您预订到达后的咖啡？',
+        accept: '好的，已经帮您预订星巴克拿铁，到达后取',
+        auto:   '我挑一家好评最高的，30 元以内，到达后取',
+        state: 'happy', icon: '☕' },
+    ]
+  },
+
+  city: {
+    desc: '城市探索 P1 · 默认关闭 · 入口轻量、体验可深 · 30 秒讲完，"多讲讲"才深入',
+    items: [
+      { kind: 'voice', label: '🗺 打开城市探索',
+        user: '打开城市探索',
+        didi: ['好呀，已经为您开启探索模式，沿途有趣的地方我都讲给您听'],
+        state: 'explore' },
+      { kind: 'invite', label: '🏯 推送：故宫北门',
+        invite: '马上经过故宫北门了，要听一段一分钟的语音介绍吗？',
+        accept: '好的，故宫始建于明永乐四年（1406 年），占地 72 万平方米…',
+        auto:   '我给您播 30 秒精华版，边走边听，到了刚好讲完',
+        state: 'explore', icon: '🏯' },
+      { kind: 'invite', label: '🍜 推送：簋街美食',
+        invite: '左前方就是簋街，麻辣小龙虾发源地，要给您讲讲吗？',
+        accept: '好，簋街全长 1.5 公里，最早是因为附近有夜市…',
+        auto:   '我挑一家这会儿排队最少的店，发到您手机',
+        state: 'explore', icon: '🍜' },
+      { kind: 'voice', label: '⭐ 收藏这个景点',
+        user: '把这个收藏一下',
+        didi: ['已经收藏到您的"探索小报"里啦，到达后可以保存或分享'],
+        state: 'happy' },
+      { kind: 'voice', label: '📖 多讲讲',
+        user: '多讲讲',
+        didi: ['好的，那我多说两分钟——这片区域在清代曾是…'],
+        state: 'curious' },
+    ]
+  },
+
+  emergency: {
+    desc: '应急 P0 · 离线本地话术 · 响应 ≤0.5s · 先事实后安抚 · 不暗示用户害怕',
+    items: [
+      { kind: 'emergency', label: '⚠ L1 急刹',
+        didi: ['急刹了一下，车辆状态安全，我在陪你', '刚才有个紧急刹车，车系统检测一切正常', '急刹是为了避让前车，现在已经恢复正常巡航了', '刚刹车有点猛，您还好吗？车辆没问题'],
+        followup: { delay: 4000, state: 'idle', didi: '刚才那一下还好吗？需要我做点什么' },
+        stayMs: 5500 },
+      { kind: 'emergency', label: '🛣 L1 临时绕行',
+        didi: ['前方有点情况，车辆自动绕行，多花 2 分钟', '系统正在重新规划路线，请稍等 30 秒', '绕一小段路，原因是前面在施工'],
+        stayMs: 4500 },
+      { kind: 'emergency', label: '🚧 L2 车辆故障 → 调度新车',
+        didi: ['车辆刚检测到一个异常，我已通知调度，5 分钟内会有新车来', '这辆车需要稍作停留检查，不用担心，给您安排接驳', '后台已经在处理，您先在车里等一下，不要下车'],
+        stayMs: 6500 },
+      { kind: 'emergency', label: '🩺 L3 身体不适 → 120',
+        didi: ['听起来您不太舒服，我帮您拨 120，15 秒内可取消', '别说话先休息，我帮您找最近的医院，已通知车辆就近停靠'],
+        state: 'guardian', stayMs: 7500 },
+      { kind: 'emergency', label: '🆘 L3 求救 → 110',
+        didi: ['收到您的求救，正在拨打 110 并通知您的紧急联系人', '已锁好车门，警察已收到位置信息，请保持镇定'],
+        state: 'guardian', stayMs: 7500 },
+      { kind: 'emergency', label: '📵 呼唤无响应（3 次升级）',
+        didi: ['您还在听我说吗？我没收到您的回应，3 秒后将拨打紧急联系人'],
+        stayMs: 6500 },
+    ]
+  },
+
+  state: {
+    desc: '形象系统 P0 · 6 情绪 + 4 场景化形态（共 10 种形态，含装饰层）',
+    items: [
+      { kind: 'state', label: '😌 idle 待机',         state: 'idle' },
+      { kind: 'state', label: '😄 happy 开心 💖',     state: 'happy' },
+      { kind: 'state', label: '🤔 curious 好奇 ❓',   state: 'curious' },
+      { kind: 'state', label: '👂 listening 倾听 🎵', state: 'listening' },
+      { kind: 'state', label: '😴 sleepy 困倦 💤',    state: 'sleepy' },
+      { kind: 'state', label: '⚠ alert 警觉 ❗',     state: 'alert' },
+      { kind: 'state', label: '☂️ rainy 雨天形态',    state: 'rainy' },
+      { kind: 'state', label: '🌙 night 夜晚形态',    state: 'night' },
+      { kind: 'state', label: '🚩 explore 探索形态',  state: 'explore' },
+      { kind: 'state', label: '🛡 guardian 守护形态', state: 'guardian' },
+    ]
+  },
+};
+
+/* ============ 场景执行引擎（每种 kind 都保证有 didi 回复） ============ */
+let lastUserAction = 0;        // 自动切换会避开最近的人为操作
+function pickReply(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function runScenario(item) {
+  lastUserAction = Date.now();
+
+  switch (item.kind) {
+    case 'voice': {
+      switchTo('listening', false);
+      setTimeout(() => addMessage('user', item.user), 500);
+      setTimeout(() => {
+        switchTo(item.state || 'happy');
+        addMessage('didi', pickReply(item.didi));
+      }, 1900);
+      break;
+    }
+    case 'invite': {
+      const inviteDelay = item.user ? 700 : 200;
+      if (item.user) addMessage('user', item.user);
+      setTimeout(() => {
+        addMessage('didi', item.invite);
+        showInvite(item.invite, {
+          accept: item.accept,
+          auto:   item.auto,           // "你帮我选" 时小桔的代办回复
+          state:  item.state,
+          icon:   item.icon
+        });
+      }, inviteDelay);
+      break;
+    }
+    case 'emergency': {
+      if (item.user) addMessage('user', item.user);
+      switchTo(item.state || 'alert', false);
+      setTimeout(() => addMessage('didi', pickReply(item.didi)), 250);
+      setTimeout(() => switchTo('idle'), item.stayMs || 6000);
+      if (item.followup) {
+        setTimeout(() => {
+          if (item.followup.state) switchTo(item.followup.state);
+          if (item.followup.didi)  addMessage('didi', item.followup.didi);
+        }, item.followup.delay);
+      }
+      break;
+    }
+    case 'state': {
+      switchTo(item.state, item.state !== 'alert' && item.state !== 'idle');
+      // 切到非默认形态时，让小桔自报家门
+      const line = randomLine(item.state);
+      if (line) setTimeout(() => addMessage('didi', line), 300);
+      break;
+    }
+  }
+}
+
+/* ============ Tab + 按钮渲染 ============ */
+const tabsEl    = document.getElementById('demoTabs');
+const buttonsEl = document.getElementById('demoButtons');
+const descEl    = document.getElementById('demoDesc');
+
+function renderTab(tabId) {
+  const group = SCENARIOS[tabId];
+  if (!group) return;
+  descEl.textContent = group.desc;
+  buttonsEl.innerHTML = '';
+  group.items.forEach(item => {
+    const btn = document.createElement('button');
+    btn.textContent = item.label;
+    btn.dataset.kind = item.kind;
+    btn.addEventListener('click', () => runScenario(item));
+    buttonsEl.appendChild(btn);
+  });
+  tabsEl.querySelectorAll('.tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.tab === tabId);
+  });
+}
+tabsEl.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => renderTab(tab.dataset.tab));
+});
+renderTab('kefu');
+
+/* ============================================================
+   自动形态切换 ① 待机微切换
+   - PRD 3.1：「待机状态下，持续播放随机 idle 微动画」
+   - 实现：idle 时 + 最近无操作时，每 7s 有 45% 概率
+           随机切到 curious/happy/listening 中的一个，自动 8s 回 idle
+   ============================================================ */
+const IDLE_VARIANTS = ['curious', 'happy', 'listening', 'curious'];
+setInterval(() => {
+  if (mascot.dataset.state !== 'idle')        return;
+  if (invite.classList.contains('show'))      return;
+  if (Date.now() - lastUserAction < 6000)     return;       // 最近 6s 内有人为操作 → 不打扰
+  if (Math.random() < 0.45) {
+    switchTo(IDLE_VARIANTS[Math.floor(Math.random() * IDLE_VARIANTS.length)]);
+  }
+}, 7000);
+
+/* ============================================================
+   自动形态切换 ② 环境感知（mock 时间轴）
+   - PRD 3.1：「检测到特殊场景（下雨/夜晚/拥堵），主动场景化形变」
+   - 实现：启动后按时间轴依次模拟 雨天 / 夜晚 / 探索 / 守护 环境信号
+           每次自动切到对应形态 + 一句解说，5-6s 后回 idle
+   ============================================================ */
+const ENV_TIMELINE = [
+  { delay: 28000,  state: 'rainy',   line: '我感受到外面开始下雨了，给你撑把伞', stay: 6000 },
+  { delay: 70000,  state: 'night',   line: '到 22 点了，我把光调暖一些～',       stay: 6000 },
+  { delay: 115000, state: 'explore', line: '左前方有个有意思的地标，要不要听听', stay: 5500 },
+  { delay: 160000, state: 'sleepy',  line: '路还有一段，安静地陪你坐一会儿',   stay: 6000 },
+];
+ENV_TIMELINE.forEach(env => {
+  setTimeout(() => {
+    if (Date.now() - lastUserAction < 8000)   return;
+    if (invite.classList.contains('show'))     return;
+    if (mascot.dataset.state !== 'idle' &&
+        !IDLE_VARIANTS.includes(mascot.dataset.state)) return;  // 当前在玩别的形态就跳过
+    switchTo(env.state, false);
+    addMessage('didi', env.line);
+    setTimeout(() => switchTo('idle'), env.stay);
+  }, env.delay);
+});
+
+/* ============================================================
+   自动形态切换 ③ 主动服务弹窗（频率克制）
+   ============================================================ */
+const AUTO_INVITES = [
+  { text: '车程还挺长的，要放点音乐打发一下吗？',
+    accept: '好嘞，给您放一首《晴天》',
+    auto:   '看您最近常听爵士，我挑一首舒缓的',
+    icon: '🎵' },
+  { text: '外面在下雨呢，到了之后注意路滑～',
+    accept: '好的，已经把"打伞提醒"加到到达通知里',
+    auto:   '我帮您看下到达点附近有没有便利店买伞',
+    state: 'rainy', icon: '☂️' },
+  { text: '前面有点堵，预计多花 8 分钟，要给联系人发个消息吗？',
+    accept: '好的，已经给"妈妈"发了"晚到 8 分钟"',
+    auto:   '我给最近联系的"妈妈"发条晚到 8 分钟',
+    icon: '🚦' },
+];
+let autoIdx = 0;
+function autoInvite() {
+  if (Date.now() - lastUserAction < 6000)  return;
+  if (invite.classList.contains('show'))    return;
+  const a = AUTO_INVITES[autoIdx++ % AUTO_INVITES.length];
+  addMessage('didi', a.text);
+  showInvite(a.text, { accept: a.accept, auto: a.auto, state: a.state, icon: a.icon });
+}
+setTimeout(autoInvite, 45000);
+setInterval(() => { if (Math.random() < 0.3) autoInvite(); }, 60000);
+
+/* ============ 时钟 ============ */
+function tickClock() {
+  const d = new Date();
+  document.getElementById('clock').textContent =
+    String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+tickClock();
+setInterval(tickClock, 30000);
+
+/* ============ 装饰星点 ============ */
+const starsEl = document.getElementById('stars');
+for (let i = 0; i < 36; i++) {
+  const s = document.createElement('span');
+  s.style.left  = Math.random() * 100 + '%';
+  s.style.top   = Math.random() * 100 + '%';
+  s.style.animationDelay = (Math.random() * 4) + 's';
+  starsEl.appendChild(s);
+}
+
+/* ============ 初始欢迎语 ============ */
+setTimeout(() => addMessage('didi', '我是小桔，在车里陪你～点下方「场景模拟」按钮就能体验各种功能'), 1500);
+
+</script>
+</body>
+</html>

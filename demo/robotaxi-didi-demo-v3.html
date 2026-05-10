@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920">
+<title>滴伴出行 - Robotaxi 座舱 AI 伴侣</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  width: 100vw; height: 100vh; overflow: hidden;
+  background: #0e1d3e;
+  font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: #e0ecff;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============ 整体布局 ============ */
+.layout {
+  width: 100vw; height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  position: relative;
+}
+
+/* ============ 顶部状态栏 ============ */
+.statusbar {
+  position: absolute; top: 0; left: 0; right: 0; height: 44px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 32px;
+  z-index: 100;
+  font-size: 13px; color: #8ab4d8;
+  letter-spacing: 1px;
+}
+.statusbar .left-info { display: flex; gap: 24px; }
+.statusbar .brand {
+  font-weight: 600; color: #FFA76B;
+  letter-spacing: 4px;
+}
+
+/* ============ 左侧：行程 + 对话 ============ */
+.left {
+  background: linear-gradient(90deg, #0c1830 0%, #122040 60%, #162a56 100%);
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 64px 56px;
+  z-index: 10;
+}
+.trip-label {
+  font-size: 11px; color: #5a8ab8; letter-spacing: 4px;
+  margin-bottom: 14px;
+}
+.trip-route {
+  font-size: 28px; font-weight: 600; color: #d0e4ff;
+  margin-bottom: 8px; line-height: 1.4;
+}
+.trip-detail {
+  font-size: 14px; color: #6a9ac8;
+  margin-bottom: 22px;
+}
+.progress-bar {
+  height: 4px; background: rgba(100,150,220,0.1);
+  border-radius: 3px; position: relative;
+  margin-bottom: 14px; max-width: 360px;
+}
+.progress-fill {
+  height: 100%; width: 65%;
+  background: linear-gradient(90deg, #FF6B35, #FFA76B);
+  border-radius: 3px; position: relative;
+}
+.progress-fill::after {
+  content: ''; position: absolute; right: -5px; top: -4px;
+  width: 12px; height: 12px;
+  background: #FFA76B; border-radius: 50%;
+  box-shadow: 0 0 12px rgba(255, 167, 107, 0.6);
+}
+.trip-time {
+  font-size: 44px; font-weight: 700; color: #e4f0ff;
+  margin-bottom: 4px; letter-spacing: 1px;
+}
+.trip-time span {
+  font-size: 16px; color: #6a9ac8; font-weight: 400;
+  margin-left: 8px;
+}
+.trip-sub {
+  font-size: 11px; color: #4a7aa8; letter-spacing: 2px;
+  margin-bottom: 32px;
+}
+
+/* ============ 对话区 ============ */
+.chat {
+  flex: 0 0 auto; max-height: 220px;
+  display: flex; flex-direction: column; gap: 10px;
+  max-width: 380px;
+  overflow: hidden;
+}
+.msg {
+  max-width: 90%; padding: 11px 16px; border-radius: 14px;
+  font-size: 14px; line-height: 1.6; opacity: 0;
+  animation: msgFadeUp 0.4s ease forwards;
+}
+.msg.user {
+  background: rgba(80, 130, 200, 0.18);
+  color: #c0d8f0; align-self: flex-end;
+  border: 1px solid rgba(80, 130, 200, 0.25);
+}
+.msg.didi {
+  background: rgba(255, 107, 53, 0.12);
+  color: #FFD2B8; align-self: flex-start;
+  border: 1px solid rgba(255, 107, 53, 0.3);
+}
+@keyframes msgFadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============ 右侧：小滴舞台 ============ */
+.right {
+  background: radial-gradient(ellipse at 50% 60%, #1a2a55 0%, #0c1830 80%);
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* 装饰背景：星点 */
+.stars { position: absolute; inset: 0; pointer-events: none; }
+.stars span {
+  position: absolute;
+  width: 2px; height: 2px;
+  background: white; border-radius: 50%;
+  opacity: 0.3;
+  animation: twinkle 4s ease-in-out infinite;
+}
+@keyframes twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.4); }
+}
+
+/* ============ 小滴本体（核心）============ */
+.didi-stage {
+  position: relative;
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  perspective: 1000px;
+}
+
+.didi {
+  /* CSS 变量可被 JS 实时修改 */
+  --hue: 22deg;
+  --sat: 100%;
+  --light: 58%;
+  --tx: 0px;
+  --ty: 0px;
+  --scale-y: 1;
+  --scale-x: 1;
+  --tilt: 0deg;
+  --glow-size: 80px;
+  --glow-strength: 0.5;
+
+  position: absolute;
+  width: 280px; height: 360px;
+
+  /* 水滴形状（顶部稍尖、底部圆润）*/
+  border-radius: 48% 48% 48% 48% / 60% 60% 40% 40%;
+
+  background: radial-gradient(
+    ellipse at 38% 32%,
+    hsl(var(--hue), var(--sat), calc(var(--light) + 25%)) 0%,
+    hsl(var(--hue), var(--sat), var(--light)) 45%,
+    hsl(var(--hue), calc(var(--sat) - 5%), calc(var(--light) - 15%)) 100%
+  );
+
+  box-shadow:
+    /* 内部阴影 - 立体感 */
+    inset -25px -40px 70px hsla(var(--hue), 100%, 25%, 0.4),
+    inset 12px 18px 35px hsla(var(--hue), 100%, 75%, 0.35),
+    /* 外部光晕 - 多层 */
+    0 0 var(--glow-size) hsla(var(--hue), var(--sat), 60%, var(--glow-strength)),
+    0 0 calc(var(--glow-size) * 2) hsla(var(--hue), var(--sat), 50%, calc(var(--glow-strength) * 0.5)),
+    0 0 calc(var(--glow-size) * 3) hsla(var(--hue), var(--sat), 40%, calc(var(--glow-strength) * 0.2));
+
+  transform:
+    translate(var(--tx), var(--ty))
+    scale(var(--scale-x), var(--scale-y))
+    rotate(var(--tilt));
+
+  transition:
+    --hue 400ms ease,
+    --sat 400ms ease,
+    --light 400ms ease,
+    --glow-size 600ms ease,
+    --glow-strength 600ms ease,
+    border-radius 400ms ease;
+
+  filter: brightness(1.05) saturate(1.1);
+}
+
+/* 顶部高光 */
+.didi::before {
+  content: '';
+  position: absolute;
+  top: 16%; left: 30%;
+  width: 32%; height: 22%;
+  background: radial-gradient(ellipse, rgba(255, 245, 230, 0.85) 0%, transparent 70%);
+  border-radius: 50%;
+  filter: blur(3px);
+  pointer-events: none;
+}
+
+/* 底部反光 */
+.didi::after {
+  content: '';
+  position: absolute;
+  bottom: 18%; left: 28%;
+  width: 44%; height: 8%;
+  background: radial-gradient(ellipse, rgba(255, 220, 180, 0.4) 0%, transparent 70%);
+  border-radius: 50%;
+  filter: blur(4px);
+  pointer-events: none;
+}
+
+/* listening 状态：顶部凹陷 */
+.didi[data-state="listening"] {
+  border-radius: 40% 40% 50% 50% / 35% 35% 50% 50%;
+}
+
+/* alert 状态：锐利尖顶 */
+.didi[data-state="alert"] {
+  border-radius: 30% 30% 50% 50% / 70% 70% 35% 35%;
+  filter: brightness(1.1) saturate(1.3);
+}
+
+/* sleepy 状态：拉扁下沉 */
+.didi[data-state="sleepy"] {
+  border-radius: 55% 55% 45% 45% / 50% 50% 50% 50%;
+  filter: brightness(0.85) saturate(0.7);
+}
+
+/* happy 状态：轻微变扁 */
+.didi[data-state="happy"] {
+  filter: brightness(1.15) saturate(1.2);
+}
+
+/* 小滴底部地面光斑 */
+.didi-shadow {
+  position: absolute;
+  bottom: 18%;
+  width: 200px; height: 30px;
+  background: radial-gradient(ellipse, rgba(255, 107, 53, 0.5) 0%, transparent 70%);
+  border-radius: 50%;
+  filter: blur(8px);
+  z-index: 0;
+}
+
+/* ============ 控制栏 ============ */
+.controls {
+  position: absolute; bottom: 24px; left: 50%;
+  transform: translateX(-50%);
+  display: flex; gap: 12px;
+  z-index: 50;
+}
+.controls button {
+  background: rgba(255, 255, 255, 0.06);
+  color: #d8e4f0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 10px 18px;
+  border-radius: 24px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 1px;
+  transition: all 200ms ease;
+  backdrop-filter: blur(10px);
+}
+.controls button:hover {
+  background: rgba(255, 167, 107, 0.18);
+  border-color: rgba(255, 167, 107, 0.4);
+  color: #FFD2B8;
+  transform: translateY(-2px);
+}
+.controls button.mic {
+  background: rgba(255, 107, 53, 0.22);
+  border-color: rgba(255, 107, 53, 0.5);
+  color: #FFD2B8;
+}
+.controls button.emergency {
+  background: rgba(220, 60, 60, 0.18);
+  border-color: rgba(220, 60, 60, 0.45);
+  color: #ffaaaa;
+}
+
+/* ============ 主动服务弹窗 ============ */
+.invite {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, calc(-50% + 200px));
+  background: rgba(20, 30, 60, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 167, 107, 0.3);
+  border-radius: 16px;
+  padding: 18px 24px;
+  font-size: 14px;
+  color: #FFD2B8;
+  z-index: 80;
+  opacity: 0; pointer-events: none;
+  transition: opacity 400ms ease, transform 400ms ease;
+  display: flex; align-items: center; gap: 16px;
+}
+.invite.show {
+  opacity: 1;
+  transform: translate(-50%, calc(-50% + 180px));
+  pointer-events: auto;
+}
+.invite-options { display: flex; gap: 8px; }
+.invite-options button {
+  background: rgba(255, 167, 107, 0.15);
+  color: #FFD2B8;
+  border: 1px solid rgba(255, 167, 107, 0.3);
+  padding: 6px 14px; border-radius: 14px;
+  font-size: 12px; cursor: pointer;
+  font-family: inherit;
+}
+.invite-options button:hover { background: rgba(255, 167, 107, 0.25); }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- 顶部状态栏 -->
+  <div class="statusbar">
+    <div class="left-info">
+      <span id="clock">14:32</span>
+      <span>晴 · 22°C</span>
+      <span>🔋 78%</span>
+    </div>
+    <div class="brand">滴伴出行</div>
+  </div>
+
+  <!-- 左侧：行程 + 对话 -->
+  <div class="left">
+    <div class="trip-label">本次行程</div>
+    <div class="trip-route">国贸三期 → 中关村·智源大厦</div>
+    <div class="trip-detail">距离 18.6 km · 路况良好</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+    <div class="trip-time">12<span>分钟到达</span></div>
+    <div class="trip-sub">PROXIMA · 14:44</div>
+    <div class="chat" id="chat"></div>
+  </div>
+
+  <!-- 右侧：小滴舞台 -->
+  <div class="right">
+    <div class="stars" id="stars"></div>
+    <div class="didi-stage">
+      <div class="didi-shadow"></div>
+      <div class="didi" id="didi" data-state="idle"></div>
+    </div>
+  </div>
+
+  <!-- 主动服务弹窗 -->
+  <div class="invite" id="invite">
+    <div id="invite-text">外面在下雨呢，记得带伞哦～</div>
+    <div class="invite-options">
+      <button data-resp="ok">好的</button>
+      <button data-resp="auto">你帮我选</button>
+      <button data-resp="silent">安静一会儿</button>
+    </div>
+  </div>
+
+  <!-- 控制栏 -->
+  <div class="controls">
+    <button data-emo="happy">开心</button>
+    <button data-emo="curious">好奇</button>
+    <button data-emo="sleepy">困倦</button>
+    <button class="emergency" data-emo="alert">⚠ 应急</button>
+    <button class="mic" id="mic">🎤 唤醒小滴</button>
+  </div>
+
+</div>
+
+<script>
+'use strict';
+
+// ============ 6 种状态参数集（PRD 3.1 节）============
+const STATE_CONFIGS = {
+  idle: {
+    hue: 22, sat: 100, light: 58, scaleX: 1.0, scaleY: 1.0, tilt: 0,
+    glowSize: 90, glowStrength: 0.5,
+    breathSpeed: 0.8, swaySpeed: 0.6, bobSpeed: 0.5,
+    breathAmp: 0.005, swayAmp: 0.8, bobAmp: 3
+  },
+  happy: {
+    hue: 28, sat: 100, light: 65, scaleX: 1.05, scaleY: 0.95, tilt: 0,
+    glowSize: 130, glowStrength: 0.7,
+    breathSpeed: 1.4, swaySpeed: 1.4, bobSpeed: 1.0,
+    breathAmp: 0.012, swayAmp: 1.6, bobAmp: 6
+  },
+  sleepy: {
+    hue: 18, sat: 70, light: 45, scaleX: 1.0, scaleY: 0.85, tilt: 4,
+    glowSize: 50, glowStrength: 0.3,
+    breathSpeed: 0.3, swaySpeed: 0.2, bobSpeed: 0.2,
+    breathAmp: 0.008, swayAmp: 0.4, bobAmp: 1.5
+  },
+  alert: {
+    hue: 8, sat: 100, light: 52, scaleX: 0.95, scaleY: 1.08, tilt: 0,
+    glowSize: 110, glowStrength: 0.8,
+    breathSpeed: 0.1, swaySpeed: 0, bobSpeed: 0,
+    breathAmp: 0.001, swayAmp: 0, bobAmp: 0
+  },
+  curious: {
+    hue: 22, sat: 100, light: 58, scaleX: 1.0, scaleY: 1.0, tilt: -10,
+    glowSize: 95, glowStrength: 0.55,
+    breathSpeed: 1.0, swaySpeed: 1.0, bobSpeed: 0.8,
+    breathAmp: 0.006, swayAmp: 1.2, bobAmp: 4
+  },
+  listening: {
+    hue: 22, sat: 100, light: 62, scaleX: 1.0, scaleY: 0.95, tilt: 0,
+    glowSize: 120, glowStrength: 0.7,
+    breathSpeed: 0.5, swaySpeed: 0, bobSpeed: 0.3,
+    breathAmp: 0.01, swayAmp: 0, bobAmp: 1.5
+  }
+};
+
+// ============ 当前与目标参数（用于 lerp 平滑过渡）============
+let current = { ...STATE_CONFIGS.idle };
+let target  = { ...STATE_CONFIGS.idle };
+const LERP = 0.04;
+
+// ============ 弹簧物理（鼠标跟随）============
+let spring = { tx: 0, ty: 0, vx: 0, vy: 0 };
+const STIFFNESS = 0.006;
+const DAMPING   = 0.91;
+let mouseX = 0, mouseY = 0;
+
+const didi = document.getElementById('didi');
+const stage = document.querySelector('.didi-stage');
+
+// ============ 鼠标跟随 ============
+document.addEventListener('mousemove', e => {
+  const rect = stage.getBoundingClientRect();
+  mouseX = (e.clientX - rect.left - rect.width / 2) * 0.05;
+  mouseY = (e.clientY - rect.top - rect.height / 2) * 0.05;
+});
+
+// ============ 主循环 ============
+let t0 = performance.now();
+function animate(now) {
+  const t = (now - t0) / 1000;
+
+  // 状态参数 lerp
+  for (const k in target) {
+    current[k] += (target[k] - current[k]) * LERP;
+  }
+
+  // 弹簧物理
+  spring.vx += (mouseX - spring.tx) * STIFFNESS;
+  spring.vy += (mouseY - spring.ty) * STIFFNESS;
+  spring.vx *= DAMPING;
+  spring.vy *= DAMPING;
+  spring.tx += spring.vx;
+  spring.ty += spring.vy;
+
+  // 多频叠加
+  const breath = Math.sin(t * current.breathSpeed) * current.breathAmp;
+  const sway   = (Math.sin(t * current.swaySpeed) + Math.sin(t * current.swaySpeed * 0.7 + 1)) * current.swayAmp * 0.5;
+  const bob    = (Math.sin(t * current.bobSpeed)  + Math.sin(t * current.bobSpeed * 0.6))      * current.bobAmp  * 0.5;
+
+  // 应用 CSS 变量
+  const style = didi.style;
+  style.setProperty('--tx', spring.tx.toFixed(2) + 'px');
+  style.setProperty('--ty', (spring.ty + bob).toFixed(2) + 'px');
+  style.setProperty('--scale-y', (current.scaleY + breath).toFixed(4));
+  style.setProperty('--scale-x', current.scaleX.toFixed(4));
+  style.setProperty('--tilt', (current.tilt + sway).toFixed(2) + 'deg');
+  style.setProperty('--hue', current.hue.toFixed(1) + 'deg');
+  style.setProperty('--sat', current.sat.toFixed(1) + '%');
+  style.setProperty('--light', current.light.toFixed(1) + '%');
+  style.setProperty('--glow-size', current.glowSize.toFixed(0) + 'px');
+  style.setProperty('--glow-strength', current.glowStrength.toFixed(2));
+
+  requestAnimationFrame(animate);
+}
+requestAnimationFrame(animate);
+
+// ============ 状态切换 ============
+let returnTimer = null;
+function switchTo(state, autoReturn = true) {
+  if (!STATE_CONFIGS[state]) return;
+  target = { ...STATE_CONFIGS[state] };
+  didi.dataset.state = state;
+
+  // 状态切换弹性冲击
+  spring.vy -= 4;
+
+  if (returnTimer) { clearTimeout(returnTimer); returnTimer = null; }
+  if (autoReturn && state !== 'idle' && state !== 'alert') {
+    returnTimer = setTimeout(() => switchTo('idle'), 8000);
+  }
+}
+
+// ============ 状态按钮 ============
+document.querySelectorAll('button[data-emo]').forEach(btn => {
+  btn.addEventListener('click', () => switchTo(btn.dataset.emo));
+});
+
+// ============ 麦克风：模拟语音交互 ============
+const mic = document.getElementById('mic');
+mic.addEventListener('click', () => {
+  switchTo('listening', false);
+  setTimeout(() => addMessage('user', '帮我把空调调到 24 度'), 600);
+  setTimeout(() => {
+    switchTo('happy');
+    addMessage('didi', '好的，已为您调到 24 度');
+  }, 2200);
+});
+
+// ============ 对话 ============
+const chat = document.getElementById('chat');
+function addMessage(who, text) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + who;
+  div.textContent = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  while (chat.children.length > 5) chat.removeChild(chat.firstChild);
+}
+
+// ============ 主动服务弹窗 ============
+const invite = document.getElementById('invite');
+const inviteText = document.getElementById('invite-text');
+const PROACTIVE_MSGS = [
+  '车程还挺长的，要放点音乐打发时间吗？',
+  '外面在下雨呢，到了之后注意路滑～',
+  '前面有点堵，预计多花 8 分钟，要给联系人发个微信吗？'
+];
+let proactiveIndex = 0;
+function showInvite() {
+  inviteText.textContent = PROACTIVE_MSGS[proactiveIndex % PROACTIVE_MSGS.length];
+  proactiveIndex++;
+  invite.classList.add('show');
+  switchTo('curious');
+}
+function hideInvite(action) {
+  invite.classList.remove('show');
+  if (action === 'ok')      { addMessage('didi', '好嘞~'); switchTo('happy'); }
+  if (action === 'auto')    { addMessage('didi', '我来安排～'); switchTo('happy'); }
+  if (action === 'silent')  { switchTo('idle'); }   // 零失落原则：不卖惨
+}
+document.querySelectorAll('.invite-options button').forEach(btn => {
+  btn.addEventListener('click', () => hideInvite(btn.dataset.resp));
+});
+setTimeout(showInvite, 12000);
+setInterval(() => { if (Math.random() < 0.4) showInvite(); }, 30000);
+
+// ============ 时钟 ============
+function tickClock() {
+  const d = new Date();
+  document.getElementById('clock').textContent =
+    String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+tickClock();
+setInterval(tickClock, 30000);
+
+// ============ 装饰星点 ============
+const starsEl = document.getElementById('stars');
+for (let i = 0; i < 50; i++) {
+  const s = document.createElement('span');
+  s.style.left  = Math.random() * 100 + '%';
+  s.style.top   = Math.random() * 100 + '%';
+  s.style.animationDelay = (Math.random() * 4) + 's';
+  starsEl.appendChild(s);
+}
+
+// ============ 初始化欢迎语 ============
+setTimeout(() => addMessage('didi', '我是小滴，在车里陪你～'), 1500);
+
+// ============ 应急按钮：演示应急话术（先事实后安抚）============
+document.querySelector('button.emergency').addEventListener('click', () => {
+  switchTo('alert', false);
+  setTimeout(() => addMessage('didi', '急刹了一下，车辆状态安全，我在陪你。'), 200);
+  setTimeout(() => switchTo('idle'), 6000);
+});
+
+</script>
+</body>
+</html>
